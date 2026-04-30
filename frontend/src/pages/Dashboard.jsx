@@ -1,5 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 import FavoriteFoods from "../components/FavoriteFoods";
+import RecipeGenerator from "../components/RecipeGenerator";
 
 function Dashboard() {
   const { user, logout } = useAuth();
@@ -19,6 +20,7 @@ function Dashboard() {
           Logout
         </button>
         <FavoriteFoods />
+        <RecipeGenerator />
       </div>
     </div>
   );

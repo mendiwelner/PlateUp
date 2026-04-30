@@ -8,3 +8,4 @@ passlib[bcrypt]
 python-multipart
 pydantic-settings
 email-validator
+google-generativeai

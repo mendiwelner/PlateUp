@@ -10,12 +10,15 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     SECRET_KEY: str = "change-me"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    GEMINI_API_KEY: str | None = None
 
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "family_menu"
+    OPENAI_API_KEY: str | None = None
+    HF_API_KEY: str | None = None
 
     @property
     def DATABASE_URL(self) -> str:

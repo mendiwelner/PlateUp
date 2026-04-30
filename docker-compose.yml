@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: family-menu-db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=family_menu  # זה יגרום לדוקר ליצור את ה-DB אוטומטית!
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

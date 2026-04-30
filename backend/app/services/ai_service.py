@@ -11,20 +11,29 @@ from app.core.config import settings
 
 
 class AIService:
+    """
+    Service responsible for interacting with Google Gemini API.
+    Handles recipe generation, error retries, and JSON parsing.
+    """
+
     def __init__(self) -> None:
-        """אתחול הלקוח של גוגל עם המודל העדכני ביותר"""
+        """Initializes the Google GenAI client with API key and model settings."""
         if not settings.GEMINI_API_KEY:
             print("❌ DEBUG: GEMINI_API_KEY is missing!")
             self.api_key = None
+            self.client = None
         else:
             self.api_key = settings.GEMINI_API_KEY.strip()
-            # יצירת הלקוח של גוגל
             self.client = genai.Client(api_key=self.api_key)
-            self.model_id = "gemini-2.5-flash"
+            self.model_id = "gemini-2.0-flash" 
             print(f"✅ AI Service initialized with {self.model_id}")
 
     def generate_recipes(self, favorite_foods: list[str]) -> dict:
-        """מייצר 3 מתכונים עם מנגנון הגנה מפני עומס שרת (503)"""
+        """
+        Sends a prompt to Gemini to generate recipes and returns a parsed dictionary.
+        Includes a retry mechanism for 503 errors.
+        """
+
         if not self.api_key:
             raise HTTPException(status_code=500, detail="API Key not configured")
 
@@ -57,16 +66,16 @@ class AIService:
                     continue
                 
                 print(f"❌ AI Error: {str(e)}")
+                # התיקון כאן: הוספת 'from e' בסוף
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail=f"AI Service Failure: {str(e)}"
-                )
+                ) from e
 
     def _parse_json(self, text: str) -> dict:
         """חילוץ וניקוי JSON מהתגובה"""
         try:
             # ניקוי סימני Markdown בצורה בטוחה
-            # מחליפים את ה-Regex בשני replace פשוטים כדי למנוע SyntaxError בהעתקה
             clean_text = text.replace("```json", "").replace("```", "").strip()
             
             # חיפוש האובייקט בעזרת סוגריים מסולסלים
@@ -79,4 +88,5 @@ class AIService:
             return json.loads(clean_text)
         except Exception as e:
             print(f"❌ JSON Parse Error: {e} | Raw text: {text[:200]}")
-            raise ValueError("התשובה מהבינה המלאכותית לא הייתה בפורמט JSON תקין")
+            # התיקון כאן: הוספת "from e" בסוף ה-raise
+            raise ValueError("התשובה מהבינה המלאכותית לא הייתה בפורמט JSON תקין") from e

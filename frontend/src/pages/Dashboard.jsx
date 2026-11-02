@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
 import { fallbackIngredients, recipes } from "../data/recipes";
@@ -312,7 +312,7 @@ function Dashboard() {
       : [...current, filter]);
   };
 
-  const matchesFilters = (recipe) => {
+  const matchesFilters = useCallback((recipe) => {
     const matchesTime = timeFilter === "all"
       || (timeFilter === "30" && recipe.minutes <= 30)
       || (timeFilter === "45" && recipe.minutes <= 45)
@@ -321,15 +321,15 @@ function Dashboard() {
     const matchesMeal = mealFilter === "הכל" || recipe.mealType === mealFilter;
     const matchesDiet = dietFilters.every((filter) => recipe[filter]);
     return matchesTime && matchesCuisine && matchesMeal && matchesDiet;
-  };
+  }, [timeFilter, cuisineFilter, mealFilter, dietFilters]);
 
-  const filteredRecipes = useMemo(() => recipes.filter(matchesFilters), [timeFilter, cuisineFilter, mealFilter, dietFilters]);
+  const filteredRecipes = useMemo(() => recipes.filter(matchesFilters), [matchesFilters]);
   const featuredRecipes = recipes.filter((recipe) => recipe.featured);
   const personalizedRecipes = useMemo(() => {
     const matchesIngredients = (recipe) => favoriteIngredients.length === 0
       || recipe.ingredients.some((ingredient) => favoriteIngredients.includes(ingredient));
     return recipes.filter((recipe) => matchesFilters(recipe) && matchesIngredients(recipe));
-  }, [favoriteIngredients, timeFilter, cuisineFilter, mealFilter, dietFilters]);
+  }, [favoriteIngredients, matchesFilters]);
 
   const calendarDays = useMemo(
     () => makeCalendarDays(calendarAnchor, calendarView),

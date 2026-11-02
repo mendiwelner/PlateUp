@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import api from "../api/axios";
 
 const AuthContext = createContext(null);
@@ -7,7 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchMe = async () => {
+  const fetchMe = useCallback(async () => {
     try {
       const response = await api.get("/users/me");
       setUser(response.data);
@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -26,9 +26,9 @@ export function AuthProvider({ children }) {
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [fetchMe]);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const formData = new URLSearchParams();
     formData.append("username", email);
     formData.append("password", password);
@@ -39,9 +39,9 @@ export function AuthProvider({ children }) {
 
     localStorage.setItem("access_token", response.data.access_token);
     await fetchMe();
-  };
+  }, [fetchMe]);
 
-  const register = async ({ email, password, fullName }) => {
+  const register = useCallback(async ({ email, password, fullName }) => {
     await api.post("/register", {
       email,
       password,
@@ -49,12 +49,12 @@ export function AuthProvider({ children }) {
     });
 
     await login(email, password);
-  };
+  }, [login]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem("access_token");
     setUser(null);
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -65,7 +65,7 @@ export function AuthProvider({ children }) {
       logout,
       isAuthenticated: Boolean(user),
     }),
-    [user, loading]
+    [user, loading, login, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -70,7 +70,7 @@ def test_planner_rejects_invalid_date(api_client):
         json={"selected_recipe_ids": [], "schedule": {"02-11-2026": ["shakshuka"]}},
     )
 
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 def test_planner_requires_authentication(api_client):

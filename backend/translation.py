@@ -26,7 +26,7 @@ def translate_safe(text):
 
     try:
         translated = translator.translate(text)
-    except:
+    except Exception:
         translated = text
 
     cache[text] = translated

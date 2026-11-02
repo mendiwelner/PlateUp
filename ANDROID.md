@@ -1,6 +1,7 @@
 # Android setup
 
 PlateUp keeps its React frontend and wraps it as an Android app with Capacitor. The FastAPI backend remains a separate service.
+The result is an installable Android package; its interface runs in the app's embedded WebView rather than the phone's browser.
 
 ## Requirements
 
@@ -39,3 +40,15 @@ npm run android:open
 In Android Studio, wait for Gradle sync, select an emulator or connected device, and press **Run**. Alternatively, with Android Studio, the SDK, and Java configured on `PATH`, run `npm run android:run`.
 
 After changing frontend code, run `npm run android:sync` again before launching the Android app so the native project receives the latest web build.
+
+## Build an APK on GitHub (no local Android Studio)
+
+The repository includes a manual GitHub Actions workflow that builds a debug APK and publishes it as a downloadable artifact:
+
+1. In the GitHub repository, open **Settings → Secrets and variables → Actions → Variables** and add a repository variable named `VITE_API_BASE_URL` with the deployed HTTPS API URL ending in `/api`. This URL is public app configuration, not a secret; do not put credentials in it.
+2. Commit and push the Android project and workflow to GitHub.
+3. Open **Actions → Build Android APK → Run workflow** and start the workflow on `main`.
+4. When it finishes, open the run summary and download the `plateup-debug-apk` artifact.
+5. Extract `app-debug.apk`, transfer it to the Android phone, and install it. Android may ask permission to install apps from that source.
+
+The APK is a debug build intended for testing, not Play Store release. Play Store publishing requires a separately signed release build and signing-key management.

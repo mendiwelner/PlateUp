@@ -52,3 +52,26 @@ The repository includes a manual GitHub Actions workflow that builds a debug APK
 5. Extract `app-debug.apk`, transfer it to the Android phone, and install it. Android may ask permission to install apps from that source.
 
 The APK is a debug build intended for testing, not Play Store release. Play Store publishing requires a separately signed release build and signing-key management.
+
+## Deploy the backend with a persistent free database
+
+The repository includes a Render Blueprint in `render.yaml` for the FastAPI service. It uses Render's free web-service plan and connects to Neon Postgres, whose free plan does not automatically delete the project or data. No cloud resources are created until you import the Blueprint from your own Render account.
+
+A newly created Neon database starts empty; it will not contain users or planner data from your local PostgreSQL database. Export/import existing data separately if you need to preserve it.
+
+Free plans have limits: Render may spin down the API after inactivity, so the first request can take about a minute. Neon scales database compute to zero after five idle minutes and resumes it on a query. Neon Free currently includes 1 GB of database storage and 100 compute-hours per month; reaching its quotas can suspend compute or block writes until the quota resets or the plan changes. Check each provider's current pricing and limits before relying on the service.
+
+### Create the Neon database
+
+1. Create a Free project at Neon and create/select its default database branch.
+2. In the Neon console, select **Connect** and copy the connection string for the database. Keep it private; it contains the database password.
+
+### Deploy the Render Blueprint
+
+1. Push `render.yaml` to the GitHub repository.
+2. In Render, choose **New → Blueprint**, connect the PlateUp repository, and review the resources and plans before applying them. The Blueprint requests a Free web service; Neon remains a separate provider.
+3. When prompted for `DATABASE_URL`, paste the Neon connection string. Never commit it or share it in chat.
+4. If recipe generation through Gemini is needed, add `GEMINI_API_KEY` later in the Render service's Environment settings. It is optional for the rest of the app.
+5. Apply the Blueprint and wait for the service deployment. The start command applies Alembic migrations before starting FastAPI.
+6. Test `https://<your-render-service>.onrender.com/health`; it should return `{"status":"ok"}`.
+7. Set the GitHub Actions repository variable `VITE_API_BASE_URL` to `https://<your-render-service>.onrender.com/api`, then run **Actions → Build Android APK → Run workflow** and install the new APK.

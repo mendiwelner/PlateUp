@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,11 +18,20 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "family_menu"
+    DATABASE_URL_OVERRIDE: str | None = Field(default=None, validation_alias="DATABASE_URL")
     OPENAI_API_KEY: str | None = None
     HF_API_KEY: str | None = None
 
     @property
     def DATABASE_URL(self) -> str:
+        if self.DATABASE_URL_OVERRIDE:
+            database_url = self.DATABASE_URL_OVERRIDE
+            if database_url.startswith("postgres://"):
+                return database_url.replace("postgres://", "postgresql+psycopg2://", 1)
+            if database_url.startswith("postgresql://"):
+                return database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            return database_url
+
         return (
             f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"

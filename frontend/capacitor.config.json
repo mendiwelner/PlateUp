@@ -1,0 +1,8 @@
+{
+  "appId": "com.plateup.app",
+  "appName": "PlateUp",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

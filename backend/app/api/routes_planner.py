@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
@@ -31,20 +31,26 @@ def save_my_planner(
     db: Session = Depends(get_db),
 ):
     updated_at = datetime.now(timezone.utc)
-    statement = insert(MealPlanner).values(
-        user_id=current_user.id,
-        selected_recipe_ids=planner_data.selected_recipe_ids,
-        schedule=planner_data.schedule,
-        updated_at=updated_at,
-    )
-    statement = statement.on_conflict_do_update(
-        index_elements=[MealPlanner.user_id],
-        set_={
-            "selected_recipe_ids": planner_data.selected_recipe_ids,
-            "schedule": planner_data.schedule,
-            "updated_at": updated_at,
-        },
-    )
-    db.execute(statement)
-    db.commit()
-    return db.get(MealPlanner, current_user.id)
+    planner = db.get(MealPlanner, current_user.id)
+    if planner is None:
+        planner = MealPlanner(user_id=current_user.id)
+        db.add(planner)
+
+    planner.selected_recipe_ids = planner_data.selected_recipe_ids
+    planner.schedule = planner_data.schedule
+    planner.updated_at = updated_at
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        planner = db.get(MealPlanner, current_user.id)
+        if planner is None:
+            raise
+        planner.selected_recipe_ids = planner_data.selected_recipe_ids
+        planner.schedule = planner_data.schedule
+        planner.updated_at = updated_at
+        db.commit()
+
+    db.refresh(planner)
+    return planner

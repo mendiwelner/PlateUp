@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
 import { fallbackIngredients, recipes } from "../data/recipes";
@@ -114,8 +114,15 @@ function RecipeGrid({ items, selectedIds, onToggle, emptyText }) {
 function Dashboard() {
   const { user, logout } = useAuth();
   const [screen, setScreen] = useState("discover");
-  const [selectedIds, setSelectedIds] = useState(() => readStorage("plateup-selected-recipes", []));
-  const [schedule, setSchedule] = useState(() => readStorage("plateup-meal-schedule", {}));
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [schedule, setSchedule] = useState({});
+  const [plannerStatus, setPlannerStatus] = useState("loading");
+  const [plannerError, setPlannerError] = useState("");
+  const [plannerErrorKind, setPlannerErrorKind] = useState("");
+  const [plannerReady, setPlannerReady] = useState(false);
+  const [legacyPlanner, setLegacyPlanner] = useState(null);
+  const [showImportPrompt, setShowImportPrompt] = useState(false);
+  const saveTimeoutRef = useRef(null);
   const [ingredientGroups, setIngredientGroups] = useState(fallbackIngredients);
   const [favoriteIngredients, setFavoriteIngredients] = useState([]);
   const [expandedIngredientGroups, setExpandedIngredientGroups] = useState({ ירקות: true });
@@ -139,12 +146,146 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("plateup-selected-recipes", JSON.stringify(selectedIds));
-  }, [selectedIds]);
+    let active = true;
+    setPlannerReady(false);
+    setPlannerStatus("loading");
+    setPlannerError("");
+    setPlannerErrorKind("");
+    setShowImportPrompt(false);
+    setLegacyPlanner(null);
+    setSelectedIds([]);
+    setSchedule({});
 
-  useEffect(() => {
-    localStorage.setItem("plateup-meal-schedule", JSON.stringify(schedule));
-  }, [schedule]);
+    api.get("/planner/me")
+      .then(({ data }) => {
+        if (!active) return;
+
+        const serverHasPlanner = Boolean(data.updated_at);
+        const storedIds = readStorage("plateup-selected-recipes", []);
+        const storedSchedule = readStorage("plateup-meal-schedule", {});
+        const legacyData = {
+          selectedIds: Array.isArray(storedIds) ? storedIds : [],
+          schedule: storedSchedule && typeof storedSchedule === "object" && !Array.isArray(storedSchedule) ? storedSchedule : {},
+        };
+        const hasLegacyData = legacyData.selectedIds.length > 0 || Object.keys(legacyData.schedule).length > 0;
+
+        if (serverHasPlanner) {
+          setSelectedIds(Array.isArray(data.selected_recipe_ids) ? data.selected_recipe_ids : []);
+          setSchedule(data.schedule && typeof data.schedule === "object" ? data.schedule : {});
+        } else if (hasLegacyData) {
+          setSelectedIds(legacyData.selectedIds);
+          setSchedule(legacyData.schedule);
+          setLegacyPlanner(legacyData);
+          setShowImportPrompt(true);
+        }
+
+        setPlannerReady(true);
+        setPlannerStatus("ready");
+      })
+      .catch(() => {
+        if (!active) return;
+        setPlannerError("לא הצלחנו לטעון את התכנון מהשרת. בדקו את החיבור ונסו שוב.");
+        setPlannerErrorKind("load");
+        setPlannerStatus("error");
+      });
+
+    return () => {
+      active = false;
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [user?.id]);
+
+  const savePlannerNow = async (nextSelectedIds, nextSchedule) => {
+    setPlannerStatus("saving");
+    setPlannerError("");
+    setPlannerErrorKind("");
+    try {
+      await api.put("/planner/me", {
+        selected_recipe_ids: nextSelectedIds,
+        schedule: nextSchedule,
+      });
+      setPlannerStatus("saved");
+      return true;
+    } catch {
+      setPlannerError("השמירה לשרת נכשלה. נסו שוב בעוד רגע.");
+      setPlannerErrorKind("save");
+      setPlannerStatus("error");
+      return false;
+    }
+  };
+
+  const queuePlannerSave = (nextSelectedIds, nextSchedule) => {
+    if (!plannerReady || showImportPrompt) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    setPlannerStatus("saving");
+    saveTimeoutRef.current = setTimeout(() => {
+      savePlannerNow(nextSelectedIds, nextSchedule);
+    }, 500);
+  };
+
+  const importLegacyPlanner = async () => {
+    if (!legacyPlanner) return;
+    const saved = await savePlannerNow(legacyPlanner.selectedIds, legacyPlanner.schedule);
+    if (!saved) return;
+
+    localStorage.removeItem("plateup-selected-recipes");
+    localStorage.removeItem("plateup-meal-schedule");
+    setShowImportPrompt(false);
+    setLegacyPlanner(null);
+  };
+
+  const discardLegacyPlanner = () => {
+    localStorage.removeItem("plateup-selected-recipes");
+    localStorage.removeItem("plateup-meal-schedule");
+    setSelectedIds([]);
+    setSchedule({});
+    setShowImportPrompt(false);
+    setLegacyPlanner(null);
+    setPlannerStatus("ready");
+  };
+
+  const retryPlannerLoad = () => {
+    if (plannerErrorKind === "save") {
+      savePlannerNow(selectedIds, schedule);
+      return;
+    }
+
+    setPlannerReady(false);
+    setPlannerStatus("loading");
+    setPlannerError("");
+    api.get("/planner/me")
+      .then(({ data }) => {
+        const serverHasPlanner = Boolean(data.updated_at);
+        const storedIds = readStorage("plateup-selected-recipes", []);
+        const storedSchedule = readStorage("plateup-meal-schedule", {});
+        const legacyData = {
+          selectedIds: Array.isArray(storedIds) ? storedIds : [],
+          schedule: storedSchedule && typeof storedSchedule === "object" && !Array.isArray(storedSchedule) ? storedSchedule : {},
+        };
+        const hasLegacyData = legacyData.selectedIds.length > 0 || Object.keys(legacyData.schedule).length > 0;
+
+        if (serverHasPlanner) {
+          setSelectedIds(Array.isArray(data.selected_recipe_ids) ? data.selected_recipe_ids : []);
+          setSchedule(data.schedule && typeof data.schedule === "object" ? data.schedule : {});
+        } else if (hasLegacyData) {
+          setSelectedIds(legacyData.selectedIds);
+          setSchedule(legacyData.schedule);
+          setLegacyPlanner(legacyData);
+          setShowImportPrompt(true);
+        } else {
+          setSelectedIds([]);
+          setSchedule({});
+        }
+        setPlannerErrorKind("");
+        setPlannerReady(true);
+        setPlannerStatus("ready");
+      })
+      .catch(() => {
+        setPlannerError("לא הצלחנו לטעון את התכנון מהשרת. בדקו את החיבור ונסו שוב.");
+        setPlannerErrorKind("load");
+        setPlannerStatus("error");
+      });
+  };
 
   const selectedRecipes = useMemo(
     () => recipes.filter((recipe) => selectedIds.includes(recipe.id)),
@@ -152,9 +293,11 @@ function Dashboard() {
   );
 
   const toggleRecipe = (id) => {
-    setSelectedIds((current) => current.includes(id)
-      ? current.filter((recipeId) => recipeId !== id)
-      : [...current, id]);
+    const nextSelectedIds = selectedIds.includes(id)
+      ? selectedIds.filter((recipeId) => recipeId !== id)
+      : [...selectedIds, id];
+    setSelectedIds(nextSelectedIds);
+    queuePlannerSave(nextSelectedIds, schedule);
   };
 
   const toggleIngredient = (ingredient) => {
@@ -209,19 +352,23 @@ function Dashboard() {
 
   const addRecipesToSchedule = () => {
     if (!modalDate || !recipesToAdd.length) return;
-    setSchedule((current) => ({
-      ...current,
-      [modalDate]: [...new Set([...(current[modalDate] || []), ...recipesToAdd])],
-    }));
+    const nextSchedule = {
+      ...schedule,
+      [modalDate]: [...new Set([...(schedule[modalDate] || []), ...recipesToAdd])],
+    };
+    setSchedule(nextSchedule);
+    queuePlannerSave(selectedIds, nextSchedule);
     setModalDate(null);
     setRecipesToAdd([]);
   };
 
   const removeFromSchedule = (dayKey, recipeId) => {
-    setSchedule((current) => ({
-      ...current,
-      [dayKey]: (current[dayKey] || []).filter((id) => id !== recipeId),
-    }));
+    const nextSchedule = {
+      ...schedule,
+      [dayKey]: (schedule[dayKey] || []).filter((id) => id !== recipeId),
+    };
+    setSchedule(nextSchedule);
+    queuePlannerSave(selectedIds, nextSchedule);
   };
 
   const finishSelection = () => setScreen("calendar");
@@ -277,6 +424,13 @@ function Dashboard() {
               <span>＋</span> בחירת מתכונים
             </button>
           )}
+          <div className={`planner-sync-status sync-${plannerStatus}`} aria-live="polite">
+            {plannerStatus === "loading" && "טוענים את התכנון…"}
+            {plannerStatus === "ready" && "התכנון מוכן"}
+            {plannerStatus === "saving" && "שומרים…"}
+            {plannerStatus === "saved" && "נשמר בענן ✓"}
+            {plannerStatus === "error" && <><span>{plannerError}</span><button type="button" onClick={retryPlannerLoad}>נסה שוב</button></>}
+          </div>
         </header>
 
         {screen === "discover" ? (
@@ -398,6 +552,29 @@ function Dashboard() {
             ) : (
               <div className="modal-empty"><span>🍽️</span><h3>הרשימה שלך עדיין ריקה</h3><p>בחרו כמה מתכונים, ואז תוכלו לשבץ אותם כאן בלוח.</p><button className="primary-button" type="button" onClick={() => setScreen("discover")}>מעבר לבחירת מתכונים <span>←</span></button></div>
             )}
+          </section>
+        </div>
+      )}
+
+      {(plannerStatus === "loading" || (plannerStatus === "error" && plannerErrorKind === "load")) && (
+        <div className="modal-backdrop planner-gate" role="presentation">
+          <section className="planner-gate-card" role="alertdialog" aria-modal="true" aria-labelledby="planner-gate-title" dir="rtl">
+            <span className="planner-gate-icon">{plannerStatus === "loading" ? "◌" : "!"}</span>
+            <h2 id="planner-gate-title">{plannerStatus === "loading" ? "טוענים את התכנון שלך…" : "לא הצלחנו להתחבר לתכנון"}</h2>
+            <p>{plannerStatus === "loading" ? "רק רגע, מביאים את המתכונים והלו״ז שלך." : plannerError}</p>
+            {plannerStatus === "error" && <button className="primary-button" type="button" onClick={retryPlannerLoad}>ניסיון חוזר</button>}
+          </section>
+        </div>
+      )}
+
+      {showImportPrompt && legacyPlanner && (
+        <div className="modal-backdrop import-backdrop" role="presentation">
+          <section className="recipe-modal import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title" dir="rtl">
+            <div className="modal-header"><div><span className="eyebrow">מצאנו תכנון קודם</span><h2 id="import-title">לייבא את המתכונים והלו״ז?</h2></div></div>
+            <p className="modal-description">נמצא מידע שנשמר בדפדפן. הוא עדיין לא משויך לחשבון מסוים. אם זה התכנון שלך, אפשר לייבא אותו לחשבון {displayName}; אחרת אפשר להתחיל מחדש.</p>
+            <div className="import-summary"><span>{legacyPlanner.selectedIds.length} מתכונים נבחרו</span><span>{Object.values(legacyPlanner.schedule).flat().length} ארוחות בלוח</span></div>
+            {plannerStatus === "error" && <p className="import-error">{plannerError}</p>}
+            <div className="modal-actions"><button className="text-button" type="button" onClick={discardLegacyPlanner}>התחלה מחדש</button><button className="primary-button" type="button" disabled={plannerStatus === "saving"} onClick={importLegacyPlanner}>{plannerStatus === "saving" ? "מייבאים…" : "ייבוא לחשבון"}<span>←</span></button></div>
           </section>
         </div>
       )}

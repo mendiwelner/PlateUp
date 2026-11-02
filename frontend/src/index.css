@@ -64,6 +64,10 @@ button { cursor: pointer; }
 .outline-button { color: var(--green); background: #fff; border: 1px solid #dce5dc; }
 .outline-button:hover { background: #f4f8f3; }
 .outline-button span { font-size: 17px; }
+.planner-sync-status { max-width: 240px; display: flex; align-items: center; gap: 7px; color: #78857a; font-size: 10px; }
+.planner-sync-status.sync-saved { color: #4a7957; }
+.planner-sync-status.sync-error { color: #a64c42; }
+.planner-sync-status button { padding: 4px 7px; color: #9c4339; background: #fff7f6; border: 1px solid #f1d7d3; border-radius: 5px; font-size: 9px; white-space: nowrap; }
 .page-content { width: min(1190px, 100%); margin: 0 auto; padding: 32px clamp(24px, 5vw, 72px) 65px; }
 .welcome-banner { min-height: 230px; position: relative; display: flex; align-items: center; overflow: hidden; margin-bottom: 38px; padding: 33px 40px; background: #eaf1e8; border: 1px solid #e1eade; border-radius: 18px; }
 .welcome-copy { position: relative; z-index: 1; max-width: 520px; }
@@ -224,6 +228,15 @@ button { cursor: pointer; }
 .modal-empty > span { font-size: 38px; }
 .modal-empty h3 { margin: 11px 0 5px; color: #405047; font-size: 16px; }
 .modal-empty p { margin: 0 0 18px; color: #8d978f; font-size: 11px; }
+.planner-gate-card { width: min(390px, calc(100% - 32px)); padding: 27px 24px; background: #fff; border: 1px solid #edf0eb; border-radius: 16px; box-shadow: 0 22px 70px #17261c40; text-align: center; }
+.planner-gate-icon { width: 42px; height: 42px; display: grid; place-items: center; margin: 0 auto 12px; color: var(--green); background: #edf4ed; border-radius: 13px; font-size: 21px; }
+.planner-gate-card h2 { margin: 0 0 7px; color: #3a4b40; font-size: 16px; }
+.planner-gate-card p { margin: 0 0 16px; color: #849087; font-size: 11px; line-height: 1.7; }
+.planner-gate-card .primary-button { min-width: 120px; }
+.import-summary { display: flex; gap: 8px; margin: 2px 0 7px; }
+.import-summary span { padding: 7px 9px; color: #64806a; background: #f0f5ef; border-radius: 6px; font-size: 9px; }
+.import-error { margin: 9px 0 0; color: #a64c42; font-size: 10px; }
+.import-modal .modal-actions { margin-top: 12px; }
 
 @media (max-width: 1120px) {
 	.planner-sidebar { width: 220px; flex-basis: 220px; }
@@ -244,6 +257,7 @@ button { cursor: pointer; }
 	.user-chip { justify-content: center; padding: 12px 0; border: 0; }
 	.planner-main { width: calc(100% - 68px); margin-right: 68px; }
 	.planner-topbar { padding: 0 24px; }
+	.planner-sync-status { max-width: 190px; font-size: 9px; }
 	.personal-panel { grid-template-columns: 1fr; }
 	.ingredient-picker { border-left: 0; border-bottom: 1px solid #ecefea; }
 	.ingredient-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
@@ -264,6 +278,8 @@ button { cursor: pointer; }
 	.mobile-brand .brand-name { display: block; font-size: 18px; }
 	.breadcrumb { display: none; }
 	.top-action { min-height: 36px; padding: 0 10px; font-size: 10px; }
+	.planner-sync-status { max-width: 100px; overflow: hidden; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 8px; text-align: right; }
+	.planner-sync-status button { font-size: 8px; }
 	.page-content { padding: 18px 14px 38px; }
 	.welcome-banner { min-height: 194px; align-items: flex-start; margin-bottom: 30px; padding: 26px 20px; }
 	.welcome-copy { max-width: 75%; }

@@ -18,3 +18,5 @@ frontend/dist/
 **/build/
 **/local.properties
 *.iml
+.neon
+node_modules/

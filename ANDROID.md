@@ -16,6 +16,8 @@ The Android WebView cannot use `localhost` to reach a backend running on the dev
 2. Set `VITE_API_BASE_URL` to the backend URL ending in `/api`. For local development, expose the backend through an HTTPS development tunnel; for regular use, deploy the API with HTTPS.
 3. The backend CORS allow-list already includes `https://localhost`, the Capacitor Android web origin.
 
+Android builds intentionally stop if this URL is missing or is not HTTPS. Regular web development still uses `http://localhost:8000/api` by default.
+
 Do not put API keys, passwords, or other secrets in `VITE_*` variables: Vite embeds them in the app bundle.
 
 ## Generate, sync, and run
